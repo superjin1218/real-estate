@@ -11,6 +11,7 @@ from wiki_store import (
     create_field_note as build_field_note,
     fetch_apt_rent as fetch_rent_data,
     fetch_apt_trade as fetch_trade_data,
+    get_knowledge_graph as build_knowledge_graph,
 )
 
 try:
@@ -45,6 +46,10 @@ def get_related_pages(page_id: str) -> list[dict[str, Any]]:
     return STORE.get_related_pages(page_id)
 
 
+def get_knowledge_graph() -> dict[str, Any]:
+    return build_knowledge_graph(STORE)
+
+
 def create_field_note(raw_note: str, visited_at: str, region: str = "", property: str = "") -> dict[str, Any]:
     return build_field_note(raw_note, visited_at=visited_at, region=region, property_name=property)
 
@@ -66,6 +71,7 @@ if mcp:
     mcp.tool()(get_page)
     mcp.tool()(search_pages)
     mcp.tool()(get_related_pages)
+    mcp.tool()(get_knowledge_graph)
     mcp.tool()(create_field_note)
     mcp.tool()(compare_properties)
     mcp.tool()(fetch_apt_trade)
@@ -80,12 +86,17 @@ def self_test() -> dict[str, Any]:
             "get_page",
             "search_pages",
             "get_related_pages",
+            "get_knowledge_graph",
             "create_field_note",
             "compare_properties",
             "fetch_apt_trade",
             "fetch_apt_rent",
         ],
         "page_count": len(list_pages()),
+        "graph_sample": {
+            "node_count": len(get_knowledge_graph()["nodes"]),
+            "edge_count": len(get_knowledge_graph()["edges"]),
+        },
         "search_sample": search_pages("잠실 소음"),
         "comparison_sample": compare_properties(property_ids) if len(property_ids) >= 2 else None,
         "rent_sample": fetch_apt_rent("11710", "202405"),

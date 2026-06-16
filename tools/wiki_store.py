@@ -245,6 +245,37 @@ def compare_properties(property_page_ids: list[str], store: WikiStore | None = N
     }
 
 
+def get_knowledge_graph(store: WikiStore | None = None) -> dict[str, Any]:
+    store = store or WikiStore()
+    pages = store.list_pages()
+    page_ids = {page["id"] for page in pages}
+    edge_map: dict[tuple[str, str], dict[str, Any]] = {}
+
+    for page in pages:
+        for related_id in page.get("related_pages", []):
+            if related_id not in page_ids or related_id == page["id"]:
+                continue
+
+            source, target = sorted([page["id"], related_id])
+            edge = edge_map.setdefault(
+                (source, target),
+                {
+                    "source": source,
+                    "target": target,
+                    "weight": 0,
+                    "directions": [],
+                },
+            )
+            edge["weight"] += 1
+            edge["directions"].append({"from": page["id"], "to": related_id})
+
+    return {
+        "nodes": pages,
+        "edges": list(edge_map.values()),
+        "tools_used": ["get_knowledge_graph", "list_pages"],
+    }
+
+
 def fetch_apt_trade(lawd_cd: str, deal_ymd: str) -> dict[str, Any]:
     endpoint = "https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade"
     return _fetch_public_data(endpoint, lawd_cd, deal_ymd, "fetch_apt_trade", _sample_trade)

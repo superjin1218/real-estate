@@ -10,7 +10,13 @@ from fastapi.staticfiles import StaticFiles
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from tools.wiki_store import WikiStore, compare_properties, fetch_apt_rent, fetch_apt_trade  # noqa: E402
+from tools.wiki_store import (  # noqa: E402
+    WikiStore,
+    compare_properties,
+    fetch_apt_rent,
+    fetch_apt_trade,
+    get_knowledge_graph,
+)
 
 
 app = FastAPI(title="Real Estate Field Wiki")
@@ -60,6 +66,11 @@ def api_search_pages(
         "pages": store.search_pages(query=q, type_filter=type, tags=tags),
         "tools_used": ["search_pages"],
     }
+
+
+@app.get("/api/graph")
+def api_get_knowledge_graph():
+    return get_knowledge_graph(store)
 
 
 @app.get("/api/compare")

@@ -7,6 +7,7 @@ This harness tells an LLM agent how to use the local Wiki and tools safely.
 - Use MCP tools before answering questions that depend on Wiki content.
 - Search first with `search_pages` or `list_pages`, then read source pages with `get_page`.
 - Use `compare_properties` for property comparison requests.
+- Use `get_knowledge_graph` when the user asks how pages, properties, checklists, regions, or trade summaries are connected.
 - Use `fetch_apt_trade` or `fetch_apt_rent` for apartment transaction data.
 - Mention when returned trade data is sample fallback data.
 - Create field-note drafts with `create_field_note`, but do not treat drafts as confirmed facts.
