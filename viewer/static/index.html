@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Real Estate Field Wiki</title>
+    <link rel="stylesheet" href="/static/app.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <header class="topbar">
+        <div class="brand-block">
+          <p class="eyebrow">FIELD KNOWLEDGE</p>
+          <h1>Real Estate Field Wiki</h1>
+        </div>
+        <form id="searchForm" class="searchbar">
+          <input id="searchInput" name="q" type="search" value="잠실 소음" autocomplete="off" />
+          <button type="submit">검색</button>
+        </form>
+        <div id="toolLog" class="tool-log" aria-live="polite"></div>
+      </header>
+
+      <main class="workspace">
+        <aside class="page-rail">
+          <div class="rail-head">
+            <span>Wiki Pages</span>
+            <button id="resetSearch" type="button">전체</button>
+          </div>
+          <div id="pageList" class="page-list"></div>
+        </aside>
+
+        <section class="reader">
+          <div class="reader-head">
+            <div>
+              <p id="pageType" class="eyebrow">TYPE</p>
+              <h2 id="pageTitle">Loading...</h2>
+            </div>
+            <div id="tagList" class="tag-list"></div>
+          </div>
+          <article id="pageBody" class="markdown-body"></article>
+        </section>
+
+        <aside class="inspector">
+          <section class="inspector-section">
+            <div class="section-title">Related</div>
+            <div id="relatedList" class="related-list"></div>
+          </section>
+          <section class="inspector-section">
+            <div class="section-title">Trade Sample</div>
+            <div id="tradePanel" class="trade-panel"></div>
+          </section>
+        </aside>
+      </main>
+
+      <section class="compare-dock">
+        <div class="compare-head">
+          <div>
+            <p class="eyebrow">PROPERTY COMPARISON</p>
+            <h2>후보 매물 비교</h2>
+          </div>
+          <div id="compareChoices" class="compare-choices"></div>
+        </div>
+        <div id="compareTable" class="compare-table"></div>
+      </section>
+    </div>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
