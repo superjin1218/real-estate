@@ -1,0 +1,24 @@
+---
+id: kr-ontology-00067
+title: "대전광역시 교육 인프라 온톨로지"
+type: ontology
+tags: ["generated", "ontology", "daejeon", "school_district"]
+source: "generated_national_ontology_sample"
+updated_at: 2026-06-16
+related_pages: ["kr-region-00006", "kr-property-00127", "kr-property-00144", "kr-property-00161", "kr-property-00178", "kr-property-00195", "kr-property-00212", "kr-property-00229", "kr-property-00246"]
+province: "대전광역시"
+district: ""
+ontology_terms: ["school_district"]
+features: ["학교", "학원가", "도서관"]
+description: "교육 인프라 조건을 대전광역시 매물에 연결"
+---
+
+# 대전광역시 교육 인프라 온톨로지
+
+## 정규화 단어
+- 대표 개념: school_district
+- 연결 표현: 학교, 학원가, 도서관
+
+## Agent 사용
+- 사용자가 이 표현을 질문하면 관련 매물의 `ontology_terms`와 점수를 비교한다.
+- 추천 결과에는 이 온톨로지 Page와 후보 매물의 연결 경로가 표시된다.

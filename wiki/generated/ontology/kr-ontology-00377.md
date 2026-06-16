@@ -1,0 +1,23 @@
+---
+id: kr-ontology-00377
+title: "진안군 녹지 접근성 세부 개념"
+type: ontology
+tags: ["generated", "ontology", "jeonbuk", "진안군", "green_access"]
+source: "generated_national_ontology_sample"
+updated_at: 2026-06-16
+related_pages: ["kr-region-00190", "kr-property-04148", "kr-property-04171", "kr-property-04194", "kr-property-04217", "kr-property-04240", "kr-property-04263"]
+province: "전북특별자치도"
+district: "진안군"
+ontology_terms: ["green_access"]
+features: ["공원", "하천", "산책로"]
+description: "진안군 녹지 접근성 조건"
+---
+
+# 진안군 녹지 접근성 세부 개념
+
+## 지역 문맥
+- 전북특별자치도 진안군에서 녹지 접근성 조건을 판단할 때 쓰는 연결 개념이다.
+- 관련 표현: 공원, 하천, 산책로
+
+## 자동 연결
+- 새 임장 글에 관련 단어가 들어오면 이 개념과 같은 ontology term으로 묶인다.

@@ -17,7 +17,7 @@
     },
     "type": {
       "type": "string",
-      "enum": ["region", "property", "field_note", "checklist", "trade_summary"]
+      "enum": ["region", "property", "field_note", "checklist", "trade_summary", "ontology"]
     },
     "tags": {
       "type": "array",
@@ -39,6 +39,33 @@
     },
     "body": {
       "type": "string"
+    },
+    "province": {
+      "type": "string"
+    },
+    "district": {
+      "type": "string"
+    },
+    "lat_lng": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      }
+    },
+    "ontology_terms": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "features": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "scores": {
+      "type": "object"
     }
   }
 }

@@ -1,0 +1,38 @@
+---
+id: kr-property-01821
+title: "세종특별자치시 나성동 후보 1821 학군 생활권 아파트"
+type: property
+tags: ["generated", "property", "sejong", "나성동", "school_district", "sunlight", "new_building"]
+source: "generated_national_ontology_sample"
+updated_at: 2026-06-16
+related_pages: ["kr-region-00008", "kr-region-00093", "kr-checklist-00076", "kr-ontology-00091", "kr-ontology-00087", "kr-ontology-00094", "kr-field-note-01821"]
+province: "세종특별자치시"
+district: "나성동"
+ontology_terms: ["school_district", "sunlight", "new_building"]
+features: ["행정중심", "신축", "공원", "자전거", "학교 접근", "남향 위주"]
+scores: {"school_district": 8, "sunlight": 9, "new_building": 10}
+description: "나성동 학군 생활권 아파트"
+lat_lng: [34.575, 126.08]
+---
+
+# 세종특별자치시 나성동 후보 1821: 학군 생활권 아파트
+
+## 기본 정보
+- 지역: 세종특별자치시 나성동
+- 면적: 전용 84㎡
+- 보증금: 66,750만원
+- 월세: 41만원
+- 관리비: 10만원
+
+## 현장 관찰
+- 특징: 행정중심, 신축, 공원
+- 관찰: 학교 접근, 남향 위주
+- 소음: 대로변 소음 시간대 확인
+- 교통: 역 또는 중심 정류장 접근성은 임장 노트와 함께 확인
+
+## 온톨로지 단어
+- 교육 인프라, 채광, 신축/준신축
+
+## 확인 필요
+- 실제 가격, 관리비, 계약 조건은 공인 자료로 재확인
+- 본 Page는 MVP 검증용 합성 샘플이며 계약 추천이 아니다.

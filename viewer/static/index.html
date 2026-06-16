@@ -7,76 +7,148 @@
     <link rel="stylesheet" href="/static/app.css" />
   </head>
   <body>
-    <div class="shell">
-      <header class="topbar">
-        <div class="brand-block">
-          <p class="eyebrow">FIELD KNOWLEDGE</p>
-          <h1>Real Estate Field Wiki</h1>
-        </div>
-        <form id="searchForm" class="searchbar">
-          <input id="searchInput" name="q" type="search" value="잠실 소음" autocomplete="off" />
-          <button type="submit">검색</button>
-        </form>
+    <div class="app-shell">
+      <header class="app-bar">
+        <button id="menuToggle" class="icon-button" type="button" aria-label="메뉴 열기">
+          <span></span><span></span><span></span>
+        </button>
+        <button id="homeBrand" class="brand-button" type="button" aria-label="홈으로 이동">Real Estate Field Wiki</button>
         <div id="toolLog" class="tool-log" aria-live="polite"></div>
       </header>
 
-      <section class="knowledge-atlas" aria-label="Wiki Knowledge Graph">
-        <div class="atlas-copy">
-          <p class="eyebrow">KNOWLEDGE GRAPH</p>
-          <h2>임장 지식 연결망</h2>
-          <div id="graphStats" class="graph-stats"></div>
-        </div>
-        <div class="graph-panel">
-          <div class="graph-head">
-            <div id="graphLegend" class="graph-legend"></div>
-            <div class="graph-status">LIVE WIKI MAP</div>
-          </div>
-          <svg id="knowledgeGraph" class="knowledge-graph" viewBox="0 0 960 340" role="img"></svg>
-        </div>
-      </section>
+      <aside id="sideMenu" class="side-menu" aria-label="Navigation">
+        <button class="menu-item active" type="button" data-view="home">검색</button>
+        <button class="menu-item" type="button" data-view="atlas">지도 탐색</button>
+        <button class="menu-item" type="button" data-view="finder">아파트 찾기</button>
+        <button class="menu-item" type="button" data-view="writer">임장 등록하기</button>
+        <button class="menu-item" type="button" data-view="wiki">Wiki 문서</button>
+        <button class="menu-item" type="button" data-view="compare">후보 비교</button>
+      </aside>
 
-      <main class="workspace">
-        <aside class="page-rail">
-          <div class="rail-head">
-            <span>Wiki Pages</span>
-            <button id="resetSearch" type="button">전체</button>
+      <main class="main-stage">
+        <section id="homeView" class="view home-view active">
+          <div class="home-mark">
+            <p>LLM WIKI</p>
+            <h1>어떤 집을 찾고 있나요?</h1>
           </div>
-          <div id="pageList" class="page-list"></div>
-        </aside>
-
-        <section class="reader">
-          <div class="reader-head">
-            <div>
-              <p id="pageType" class="eyebrow">TYPE</p>
-              <h2 id="pageTitle">Loading...</h2>
-            </div>
-            <div id="tagList" class="tag-list"></div>
-          </div>
-          <article id="pageBody" class="markdown-body"></article>
+          <form id="homeSearchForm" class="prompt-form">
+            <input
+              id="homeSearchInput"
+              type="search"
+              value="소음이 없는 서울에 있는 집 찾아줘"
+              autocomplete="off"
+              aria-label="집 찾기 검색"
+            />
+            <button type="submit">검색</button>
+          </form>
         </section>
 
-        <aside class="inspector">
-          <section class="inspector-section">
-            <div class="section-title">Related</div>
-            <div id="relatedList" class="related-list"></div>
-          </section>
-          <section class="inspector-section">
-            <div class="section-title">Trade Sample</div>
-            <div id="tradePanel" class="trade-panel"></div>
-          </section>
-        </aside>
-      </main>
+        <section id="atlasView" class="view atlas-view">
+          <div class="view-head">
+            <div>
+              <p class="eyebrow">KOREA ATLAS</p>
+              <h2>전국 임장 지도</h2>
+            </div>
+            <div id="atlasStats" class="stat-strip"></div>
+          </div>
+          <div class="atlas-layout">
+            <section class="korea-map-panel">
+              <svg id="koreaMap" class="korea-map" viewBox="0 0 520 760" role="img" aria-label="대한민국 시도 지도"></svg>
+            </section>
+            <section class="graph-panel">
+              <div class="graph-toolbar">
+                <div>
+                  <p id="scopeLabel" class="eyebrow">OBSIDIAN GRAPH</p>
+                  <h3 id="graphTitle">전국 지도에서 지역을 선택하세요</h3>
+                </div>
+                <div class="graph-actions">
+                  <div id="graphMeta" class="graph-meta"></div>
+                  <button id="graphReset" class="graph-reset" type="button">지역 요약</button>
+                </div>
+              </div>
+              <div class="graph-stage">
+                <svg id="knowledgeGraph" class="knowledge-graph" viewBox="0 0 960 560" role="img"></svg>
+                <aside id="graphInspector" class="graph-inspector"></aside>
+              </div>
+            </section>
+          </div>
+        </section>
 
-      <section class="compare-dock">
-        <div class="compare-head">
-          <div>
-            <p class="eyebrow">PROPERTY COMPARISON</p>
-            <h2>후보 매물 비교</h2>
+        <section id="finderView" class="view finder-view">
+          <div class="view-head">
+            <div>
+              <p class="eyebrow">ONTOLOGY SEARCH</p>
+              <h2>아파트 찾기</h2>
+            </div>
+          </div>
+          <form id="finderForm" class="finder-form">
+            <input id="finderInput" type="search" value="소음이 없는 서울에 있는 집 찾아줘" autocomplete="off" />
+            <button type="submit">추천</button>
+          </form>
+          <div id="recommendationPanel" class="recommendation-panel"></div>
+        </section>
+
+        <section id="writerView" class="view writer-view">
+          <div class="view-head">
+            <div>
+              <p class="eyebrow">FIELD NOTE</p>
+              <h2>임장 등록하기</h2>
+            </div>
+            <div id="writerStatus" class="writer-status"></div>
+          </div>
+          <form id="writerForm" class="writer-form">
+            <input id="writerTitle" name="title" type="text" placeholder="제목" required />
+            <select id="writerType" name="type" aria-label="Page type">
+              <option value="field_note">임장 노트</option>
+              <option value="property">매물</option>
+              <option value="region">생활권</option>
+              <option value="checklist">체크리스트</option>
+              <option value="trade_summary">실거래 요약</option>
+            </select>
+            <input id="writerProvince" name="province" type="text" placeholder="시도" />
+            <input id="writerDistrict" name="district" type="text" placeholder="시군구" />
+            <input id="writerTags" name="tags" type="text" placeholder="태그" />
+            <input id="writerRelated" name="related_pages" type="text" placeholder="연결 Page ID" />
+            <textarea id="writerBody" name="body" rows="9" placeholder="본문" required></textarea>
+            <button type="submit">저장</button>
+          </form>
+        </section>
+
+        <section id="wikiView" class="view wiki-view">
+          <div class="view-head">
+            <div>
+              <p class="eyebrow">WIKI PAGES</p>
+              <h2>Wiki 문서</h2>
+            </div>
+            <button id="resetSearch" type="button">전체</button>
+          </div>
+          <div class="wiki-layout">
+            <aside id="pageList" class="page-list"></aside>
+            <article class="reader">
+              <div class="reader-head">
+                <div>
+                  <p id="pageType" class="eyebrow">TYPE</p>
+                  <h3 id="pageTitle">문서를 선택하세요</h3>
+                </div>
+                <div id="tagList" class="tag-list"></div>
+              </div>
+              <div id="pageBody" class="markdown-body"></div>
+              <div id="relatedList" class="related-list"></div>
+            </article>
+          </div>
+        </section>
+
+        <section id="compareView" class="view compare-view">
+          <div class="view-head">
+            <div>
+              <p class="eyebrow">PROPERTY COMPARISON</p>
+              <h2>후보 비교</h2>
+            </div>
           </div>
           <div id="compareChoices" class="compare-choices"></div>
-        </div>
-        <div id="compareTable" class="compare-table"></div>
-      </section>
+          <div id="compareTable" class="compare-table"></div>
+        </section>
+      </main>
     </div>
     <script src="/static/app.js"></script>
   </body>

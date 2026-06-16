@@ -1,0 +1,38 @@
+---
+id: kr-property-00808
+title: "부산광역시 사하구 후보 0808 주차 여유 단지"
+type: property
+tags: ["generated", "property", "busan", "사하구", "parking", "safety", "green_access"]
+source: "generated_national_ontology_sample"
+updated_at: 2026-06-16
+related_pages: ["kr-region-00002", "kr-region-00051", "kr-checklist-00034", "kr-ontology-00024", "kr-ontology-00016", "kr-ontology-00017", "kr-field-note-00808"]
+province: "부산광역시"
+district: "사하구"
+ontology_terms: ["parking", "safety", "green_access"]
+features: ["해변", "항만", "산복도로", "도시철도", "관광", "자차 이용", "단지 내 조도"]
+scores: {"parking": 9, "safety": 10, "green_access": 5}
+description: "사하구 주차 여유 단지"
+lat_lng: [39.6, 129.04]
+---
+
+# 부산광역시 사하구 후보 0808: 주차 여유 단지
+
+## 기본 정보
+- 지역: 부산광역시 사하구
+- 면적: 전용 84㎡
+- 보증금: 38,800만원
+- 월세: 47만원
+- 관리비: 14만원
+
+## 현장 관찰
+- 특징: 해변, 항만, 산복도로
+- 관찰: 자차 이용, 단지 내 조도
+- 소음: 대로변 소음 시간대 확인
+- 교통: 역 또는 중심 정류장 접근성은 임장 노트와 함께 확인
+
+## 온톨로지 단어
+- 주차, 야간 안전, 녹지 접근성
+
+## 확인 필요
+- 실제 가격, 관리비, 계약 조건은 공인 자료로 재확인
+- 본 Page는 MVP 검증용 합성 샘플이며 계약 추천이 아니다.

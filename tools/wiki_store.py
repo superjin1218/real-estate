@@ -6,7 +6,7 @@ import re
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, fields
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -14,6 +14,79 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_WIKI_DIR = ROOT / "wiki"
+PAGE_TYPE_DIRS = {
+    "region": "regions",
+    "property": "properties",
+    "field_note": "notes",
+    "checklist": "checklists",
+    "trade_summary": "data",
+    "ontology": "ontology",
+}
+
+SUMMARY_METADATA_KEYS = [
+    "province",
+    "district",
+    "lat_lng",
+    "ontology_terms",
+    "features",
+    "scores",
+    "description",
+]
+
+ONTOLOGY_ALIASES: dict[str, list[str]] = {
+    "low_noise": ["소음 없는", "소음이 없는", "조용한", "저소음", "소음 적은", "방음", "대로변 아님"],
+    "station_access": ["역세권", "역 가까운", "도보", "지하철", "교통 좋은"],
+    "sunlight": ["채광", "햇빛", "남향", "밝은"],
+    "safety": ["안전", "야간 안전", "골목 밝은", "치안"],
+    "green_access": ["공원", "녹지", "산책", "숲", "하천"],
+    "river_access": ["한강", "강변", "수변"],
+    "school_district": ["학군", "학교", "학원가", "교육"],
+    "office_access": ["직주근접", "업무지구", "출퇴근", "회사 가까운"],
+    "low_rent": ["저렴한", "월세 낮은", "관리비 낮은", "가격 접근성"],
+    "new_building": ["신축", "준신축", "새 아파트"],
+    "pet_friendly": ["반려동물", "펫", "강아지", "고양이"],
+    "parking": ["주차", "자차", "주차장"],
+}
+
+REGION_ALIASES: dict[str, str] = {
+    "서울": "서울특별시",
+    "서울특별시": "서울특별시",
+    "부산": "부산광역시",
+    "부산광역시": "부산광역시",
+    "대구": "대구광역시",
+    "대구광역시": "대구광역시",
+    "인천": "인천광역시",
+    "인천광역시": "인천광역시",
+    "광주": "광주광역시",
+    "광주광역시": "광주광역시",
+    "대전": "대전광역시",
+    "대전광역시": "대전광역시",
+    "울산": "울산광역시",
+    "울산광역시": "울산광역시",
+    "세종": "세종특별자치시",
+    "세종특별자치시": "세종특별자치시",
+    "경기": "경기도",
+    "경기도": "경기도",
+    "강원": "강원특별자치도",
+    "강원도": "강원특별자치도",
+    "강원특별자치도": "강원특별자치도",
+    "충북": "충청북도",
+    "충청북도": "충청북도",
+    "충남": "충청남도",
+    "충청남도": "충청남도",
+    "전북": "전북특별자치도",
+    "전라북도": "전북특별자치도",
+    "전북특별자치도": "전북특별자치도",
+    "전남": "전라남도",
+    "전라남도": "전라남도",
+    "경북": "경상북도",
+    "경상북도": "경상북도",
+    "경남": "경상남도",
+    "경상남도": "경상남도",
+    "제주": "제주특별자치도",
+    "제주도": "제주특별자치도",
+    "제주특별자치도": "제주특별자치도",
+}
 
 
 def slugify(value: str) -> str:
@@ -26,6 +99,10 @@ def slugify(value: str) -> str:
 def _parse_value(raw: str) -> Any:
     raw = raw.strip()
     if raw.startswith("[") and raw.endswith("]"):
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            pass
         inner = raw[1:-1].strip()
         if not inner:
             return []
@@ -69,9 +146,10 @@ class WikiPage:
     related_pages: list[str]
     body: str
     path: str
+    metadata: dict[str, Any]
 
     def summary(self) -> dict[str, Any]:
-        return {
+        item = {
             "id": self.id,
             "slug": self.slug,
             "title": self.title,
@@ -81,31 +159,63 @@ class WikiPage:
             "updated_at": self.updated_at,
             "related_pages": self.related_pages,
         }
+        for key in SUMMARY_METADATA_KEYS:
+            if key in self.metadata:
+                item[key] = self.metadata[key]
+        return item
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        item = asdict(self)
+        for key in SUMMARY_METADATA_KEYS:
+            if key in self.metadata:
+                item[key] = self.metadata[key]
+        return item
+
+
+WIKI_PAGE_FIELDS = {field.name for field in fields(WikiPage)}
+
+
+def _wiki_page_from_dict(data: dict[str, Any]) -> WikiPage:
+    return WikiPage(**{key: value for key, value in data.items() if key in WIKI_PAGE_FIELDS})
 
 
 class WikiStore:
     def __init__(self, root: Path | str = DEFAULT_WIKI_DIR):
-        self.root = Path(root)
+        self.root = Path(root).resolve()
+        self._pages_cache: list[WikiPage] | None = None
 
     def pages(self) -> list[WikiPage]:
+        if self._pages_cache is not None:
+            return self._pages_cache
         pages: list[WikiPage] = []
         for path in sorted(self.root.rglob("*.md")):
             page = self._load_page(path)
             if page:
                 pages.append(page)
+        self._pages_cache = pages
         return pages
 
-    def list_pages(self, type_filter: str | None = None, tag: str | None = None) -> list[dict[str, Any]]:
+    def list_pages(
+        self,
+        type_filter: str | None = None,
+        tag: str | None = None,
+        province: str | None = None,
+        district: str | None = None,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
         result = []
         for page in self.pages():
             if type_filter and page.type != type_filter:
                 continue
             if tag and tag not in page.tags:
                 continue
+            if province and page.metadata.get("province") != province:
+                continue
+            if district and page.metadata.get("district") != district:
+                continue
             result.append(page.summary())
+            if limit and len(result) >= limit:
+                break
         return result
 
     def get_page(self, page_id: str) -> dict[str, Any]:
@@ -119,6 +229,9 @@ class WikiStore:
         query: str,
         type_filter: str | None = None,
         tags: list[str] | None = None,
+        province: str | None = None,
+        district: str | None = None,
+        limit: int | None = 50,
     ) -> list[dict[str, Any]]:
         query_terms = [term for term in re.split(r"\s+", query.strip().lower()) if term]
         tag_filter = set(tags or [])
@@ -129,8 +242,22 @@ class WikiStore:
                 continue
             if tag_filter and not tag_filter.issubset(set(page.tags)):
                 continue
+            if province and page.metadata.get("province") != province:
+                continue
+            if district and page.metadata.get("district") != district:
+                continue
 
-            haystack = " ".join([page.title, page.type, " ".join(page.tags), page.body]).lower()
+            haystack = " ".join(
+                [
+                    page.title,
+                    page.type,
+                    str(page.metadata.get("province", "")),
+                    str(page.metadata.get("district", "")),
+                    " ".join(page.tags),
+                    " ".join(_normalize_string_list(page.metadata.get("ontology_terms", []))),
+                    page.body,
+                ]
+            ).lower()
             score = 0
             if not query_terms:
                 score = 1
@@ -145,10 +272,11 @@ class WikiStore:
                 item["snippet"] = _snippet(page.body, query_terms)
                 matches.append(item)
 
-        return sorted(matches, key=lambda item: (-item["score"], item["title"]))
+        sorted_matches = sorted(matches, key=lambda item: (-item["score"], item["title"]))
+        return sorted_matches[:limit] if limit else sorted_matches
 
     def get_related_pages(self, page_id: str) -> list[dict[str, Any]]:
-        page = WikiPage(**self.get_page(page_id))
+        page = _wiki_page_from_dict(self.get_page(page_id))
         all_pages = {candidate.id: candidate for candidate in self.pages()}
         related: list[dict[str, Any]] = []
         for related_id in page.related_pages:
@@ -157,6 +285,161 @@ class WikiStore:
                 item = related_page.summary()
                 item["relation"] = _relation_label(page.type, related_page.type)
                 related.append(item)
+        return related
+
+    def create_page(
+        self,
+        title: str,
+        page_type: str,
+        body: str,
+        tags: list[str] | None = None,
+        related_pages: list[str] | None = None,
+        source: str = "agent_written",
+        page_id: str | None = None,
+        confirmed: bool = False,
+        overwrite: bool = False,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        normalized_type = _normalize_page_type(page_type)
+        normalized_tags = _normalize_string_list(tags)
+        normalized_related = _normalize_string_list(related_pages)
+        inferred_terms = extract_ontology_terms(" ".join([title, body, " ".join(normalized_tags)]))
+        normalized_tags = _merge_unique(normalized_tags, inferred_terms)
+        safe_id = _clean_page_id(page_id or f"{normalized_type}-{slugify(title)}")
+
+        if not overwrite:
+            safe_id = self._unique_page_id(normalized_type, safe_id)
+
+        extra_metadata = dict(metadata or {})
+        if inferred_terms:
+            extra_metadata["ontology_terms"] = _merge_unique(
+                _normalize_string_list(extra_metadata.get("ontology_terms", [])),
+                inferred_terms,
+            )
+            normalized_related = _merge_unique(
+                normalized_related,
+                self._related_ontology_ids(str(extra_metadata.get("province", "")), inferred_terms),
+            )
+        markdown = _render_page_markdown(
+            page_id=safe_id,
+            title=title,
+            page_type=normalized_type,
+            tags=normalized_tags,
+            source=source,
+            related_pages=normalized_related,
+            body=body,
+            extra_metadata=extra_metadata,
+        )
+        path = self._path_for_page(normalized_type, safe_id)
+
+        if not confirmed:
+            return {
+                "draft_id": safe_id,
+                "draft_path": self._relative_path(path),
+                "draft_markdown": markdown,
+                "file_written": False,
+                "needs_user_confirmation": True,
+                "tools_used": ["create_page"],
+            }
+
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(markdown, encoding="utf-8")
+        self._pages_cache = None
+        return {
+            "page": self.get_page(safe_id),
+            "created": True,
+            "file_written": True,
+            "tools_used": ["create_page"],
+        }
+
+    def update_page(
+        self,
+        page_id: str,
+        title: str | None = None,
+        body: str | None = None,
+        tags: list[str] | None = None,
+        related_pages: list[str] | None = None,
+        source: str | None = None,
+        confirmed: bool = False,
+    ) -> dict[str, Any]:
+        current = _wiki_page_from_dict(self.get_page(page_id))
+        updated_tags = current.tags if tags is None else _normalize_string_list(tags)
+        updated_related = current.related_pages if related_pages is None else _normalize_string_list(related_pages)
+        inferred_terms = extract_ontology_terms(
+            " ".join([title or current.title, body if body is not None else current.body, " ".join(updated_tags)])
+        )
+        updated_tags = _merge_unique(updated_tags, inferred_terms)
+        extra_metadata = dict(current.metadata)
+        if inferred_terms:
+            extra_metadata["ontology_terms"] = _merge_unique(
+                _normalize_string_list(extra_metadata.get("ontology_terms", [])),
+                inferred_terms,
+            )
+            updated_related = _merge_unique(
+                updated_related,
+                self._related_ontology_ids(str(extra_metadata.get("province", "")), inferred_terms),
+            )
+        markdown = _render_page_markdown(
+            page_id=current.id,
+            title=title or current.title,
+            page_type=current.type,
+            tags=updated_tags,
+            source=source or current.source,
+            related_pages=updated_related,
+            body=body if body is not None else current.body,
+            extra_metadata=extra_metadata,
+        )
+        path = (self.root / current.path).resolve()
+        try:
+            path.relative_to(self.root.resolve())
+        except ValueError as exc:
+            raise ValueError(f"Refusing to update page outside wiki root: {current.path}") from exc
+
+        if not confirmed:
+            return {
+                "draft_id": current.id,
+                "draft_path": current.path,
+                "draft_markdown": markdown,
+                "file_written": False,
+                "needs_user_confirmation": True,
+                "tools_used": ["update_page", "get_page"],
+            }
+
+        path.write_text(markdown, encoding="utf-8")
+        self._pages_cache = None
+        return {
+            "page": self.get_page(current.id),
+            "updated": True,
+            "file_written": True,
+            "tools_used": ["update_page", "get_page"],
+        }
+
+    def _path_for_page(self, page_type: str, page_id: str) -> Path:
+        return self.root / PAGE_TYPE_DIRS[page_type] / f"{page_id}.md"
+
+    def _relative_path(self, path: Path) -> str:
+        return path.resolve().relative_to(self.root).as_posix()
+
+    def _unique_page_id(self, page_type: str, page_id: str) -> str:
+        candidate = page_id
+        suffix = 2
+        while self._path_for_page(page_type, candidate).exists():
+            candidate = f"{page_id}-{suffix}"
+            suffix += 1
+        return candidate
+
+    def _related_ontology_ids(self, province: str, terms: list[str], limit: int = 8) -> list[str]:
+        related: list[str] = []
+        for page in self.pages():
+            if page.type != "ontology":
+                continue
+            if province and page.metadata.get("province") != province:
+                continue
+            ontology_terms = _normalize_string_list(page.metadata.get("ontology_terms", []))
+            if any(term in ontology_terms for term in terms):
+                related.append(page.id)
+            if len(related) >= limit:
+                break
         return related
 
     def _load_page(self, path: Path) -> WikiPage | None:
@@ -172,6 +455,18 @@ class WikiStore:
         if isinstance(related_pages, str):
             related_pages = [related_pages]
 
+        known_keys = {
+            "id",
+            "slug",
+            "title",
+            "type",
+            "tags",
+            "source",
+            "updated_at",
+            "related_pages",
+        }
+        extra_metadata = {key: value for key, value in metadata.items() if key not in known_keys}
+
         return WikiPage(
             id=str(metadata.get("id") or fallback_id),
             slug=str(metadata.get("slug") or rel_slug),
@@ -182,7 +477,8 @@ class WikiStore:
             updated_at=str(metadata.get("updated_at") or date.fromtimestamp(path.stat().st_mtime)),
             related_pages=[str(related_id) for related_id in related_pages],
             body=body.strip(),
-            path=path.relative_to(ROOT).as_posix(),
+            path=self._relative_path(path),
+            metadata=extra_metadata,
         )
 
 
@@ -218,7 +514,7 @@ def create_field_note(raw_note: str, visited_at: str, region: str = "", property
 
 def compare_properties(property_page_ids: list[str], store: WikiStore | None = None) -> dict[str, Any]:
     store = store or WikiStore()
-    pages = [WikiPage(**store.get_page(page_id)) for page_id in property_page_ids]
+    pages = [_wiki_page_from_dict(store.get_page(page_id)) for page_id in property_page_ids]
     criteria = [
         ("가격/비용", ["보증금", "월세", "매매가", "가격", "관리비"]),
         ("면적/구조", ["면적", "전용", "구조"]),
@@ -248,6 +544,163 @@ def compare_properties(property_page_ids: list[str], store: WikiStore | None = N
 def get_knowledge_graph(store: WikiStore | None = None) -> dict[str, Any]:
     store = store or WikiStore()
     pages = store.list_pages()
+    return _build_graph_response(pages, ["get_knowledge_graph", "list_pages"])
+
+
+def get_scoped_graph(
+    store: WikiStore | None = None,
+    province: str | None = None,
+    district: str | None = None,
+    limit: int = 900,
+) -> dict[str, Any]:
+    store = store or WikiStore()
+    pages = store.list_pages(province=province, district=district)
+    pages = _prioritize_graph_pages(pages, limit)
+    response = _build_graph_response(pages, ["get_scoped_graph", "list_pages"])
+    response["scope"] = {"province": province, "district": district, "limit": limit}
+    return response
+
+
+def get_atlas(store: WikiStore | None = None) -> dict[str, Any]:
+    store = store or WikiStore()
+    atlas: dict[str, dict[str, Any]] = {}
+    for page in store.list_pages():
+        province = page.get("province")
+        if not province:
+            continue
+        entry = atlas.setdefault(
+            str(province),
+            {
+                "province": province,
+                "page_count": 0,
+                "property_count": 0,
+                "districts": {},
+                "ontology_terms": {},
+            },
+        )
+        entry["page_count"] += 1
+        if page["type"] == "property":
+            entry["property_count"] += 1
+        district = page.get("district")
+        if district:
+            entry["districts"][district] = entry["districts"].get(district, 0) + 1
+        for term in _normalize_string_list(page.get("ontology_terms", [])):
+            entry["ontology_terms"][term] = entry["ontology_terms"].get(term, 0) + 1
+
+    provinces = []
+    for entry in atlas.values():
+        entry["districts"] = [
+            {"name": name, "page_count": count}
+            for name, count in sorted(entry["districts"].items(), key=lambda item: (-item[1], item[0]))[:12]
+        ]
+        entry["ontology_terms"] = [
+            {"term": term, "count": count}
+            for term, count in sorted(entry["ontology_terms"].items(), key=lambda item: (-item[1], item[0]))[:8]
+        ]
+        provinces.append(entry)
+
+    return {
+        "provinces": sorted(provinces, key=lambda item: item["province"]),
+        "tools_used": ["get_atlas", "list_pages"],
+    }
+
+
+def recommend_properties(
+    query: str,
+    store: WikiStore | None = None,
+    province: str | None = None,
+    district: str | None = None,
+    limit: int = 5,
+) -> dict[str, Any]:
+    store = store or WikiStore()
+    inferred_province = province or infer_province(query)
+    inferred_terms = extract_ontology_terms(query)
+    query_terms = [term for term in re.split(r"\s+", query.strip().lower()) if term]
+    candidates = [
+        page
+        for page in store.pages()
+        if page.type == "property"
+        and (not inferred_province or page.metadata.get("province") == inferred_province)
+        and (not district or page.metadata.get("district") == district)
+    ]
+    scored: list[dict[str, Any]] = []
+
+    for page in candidates:
+        ontology_terms = _normalize_string_list(page.metadata.get("ontology_terms", []))
+        features = _normalize_string_list(page.metadata.get("features", []))
+        scores = page.metadata.get("scores", {})
+        if not isinstance(scores, dict):
+            scores = {}
+
+        score = 0.0
+        reasons: list[str] = []
+        matched_terms = [term for term in inferred_terms if term in ontology_terms or term in features]
+        score += len(matched_terms) * 18
+        for term in matched_terms:
+            label = _ontology_label(term)
+            reasons.append(f"{label} 조건과 연결됨")
+
+        if inferred_province and page.metadata.get("province") == inferred_province:
+            score += 15
+            reasons.append(f"{inferred_province} 지역 일치")
+        if district and page.metadata.get("district") == district:
+            score += 10
+            reasons.append(f"{district} 세부 지역 일치")
+
+        for term in inferred_terms:
+            value = scores.get(term)
+            if isinstance(value, (int, float)):
+                score += float(value)
+        if "low_noise" in inferred_terms and "대로변 소음" in page.body:
+            score -= 10
+
+        haystack = " ".join([page.title, page.body, " ".join(page.tags), " ".join(features)]).lower()
+        for term in query_terms:
+            if term in haystack:
+                score += 1
+
+        if score > 0:
+            scored.append(
+                {
+                    "page": page.summary(),
+                    "score": round(score, 2),
+                    "matched_terms": matched_terms,
+                    "ontology_path": _ontology_path(inferred_province, matched_terms, page),
+                    "reasons": reasons[:5] or ["질문 키워드와 Page 본문이 연결됨"],
+                    "snippet": _snippet(page.body, query_terms),
+                }
+            )
+
+    scored.sort(key=lambda item: (-item["score"], item["page"]["title"]))
+    return {
+        "query": query,
+        "normalized": {
+            "province": inferred_province,
+            "district": district,
+            "ontology_terms": inferred_terms,
+        },
+        "recommendations": scored[:limit],
+        "tools_used": ["recommend_properties", "extract_ontology_terms", "list_pages", "get_page"],
+    }
+
+
+def extract_ontology_terms(text: str) -> list[str]:
+    lowered = text.lower()
+    found: list[str] = []
+    for term, aliases in ONTOLOGY_ALIASES.items():
+        if term in lowered or any(alias.lower() in lowered for alias in aliases):
+            found.append(term)
+    return found
+
+
+def infer_province(text: str) -> str | None:
+    for alias, province in REGION_ALIASES.items():
+        if alias in text:
+            return province
+    return None
+
+
+def _build_graph_response(pages: list[dict[str, Any]], tools_used: list[str]) -> dict[str, Any]:
     page_ids = {page["id"] for page in pages}
     edge_map: dict[tuple[str, str], dict[str, Any]] = {}
 
@@ -272,8 +725,119 @@ def get_knowledge_graph(store: WikiStore | None = None) -> dict[str, Any]:
     return {
         "nodes": pages,
         "edges": list(edge_map.values()),
-        "tools_used": ["get_knowledge_graph", "list_pages"],
+        "tools_used": tools_used,
     }
+
+
+def _prioritize_graph_pages(pages: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
+    if len(pages) <= limit:
+        return pages
+    type_rank = {"region": 0, "ontology": 1, "property": 2, "field_note": 3, "checklist": 4, "trade_summary": 5}
+    return sorted(pages, key=lambda item: (type_rank.get(item["type"], 9), item["title"]))[:limit]
+
+
+def _normalize_page_type(page_type: str) -> str:
+    normalized = page_type.strip()
+    if normalized not in PAGE_TYPE_DIRS:
+        allowed = ", ".join(sorted(PAGE_TYPE_DIRS))
+        raise ValueError(f"Unsupported page type: {page_type}. Allowed types: {allowed}")
+    return normalized
+
+
+def _normalize_string_list(values: list[str] | str | None) -> list[str]:
+    if not values:
+        return []
+    if isinstance(values, str):
+        values = [values]
+    result: list[str] = []
+    for value in values:
+        item = str(value).strip()
+        if item and item not in result:
+            result.append(item)
+    return result
+
+
+def _merge_unique(first: list[str], second: list[str]) -> list[str]:
+    result = list(first)
+    for item in second:
+        if item not in result:
+            result.append(item)
+    return result
+
+
+def _clean_page_id(value: str) -> str:
+    page_id = slugify(value)
+    if not re.match(r"^[0-9A-Za-z가-힣][0-9A-Za-z가-힣-]*$", page_id):
+        raise ValueError(f"Invalid page id: {value}")
+    return page_id
+
+
+def _format_frontmatter_list(values: list[str]) -> str:
+    return "[" + ", ".join(json.dumps(value, ensure_ascii=False) for value in values) + "]"
+
+
+def _render_page_markdown(
+    page_id: str,
+    title: str,
+    page_type: str,
+    tags: list[str],
+    source: str,
+    related_pages: list[str],
+    body: str,
+    extra_metadata: dict[str, Any] | None = None,
+) -> str:
+    clean_body = body.strip()
+    if not clean_body.startswith("#"):
+        clean_body = f"# {title}\n\n{clean_body}"
+    extra_lines = ""
+    for key, value in (extra_metadata or {}).items():
+        if key in {"id", "title", "type", "tags", "source", "updated_at", "related_pages"}:
+            continue
+        extra_lines += f"{key}: {json.dumps(value, ensure_ascii=False)}\n"
+    return (
+        "---\n"
+        f"id: {page_id}\n"
+        f"title: {json.dumps(title, ensure_ascii=False)}\n"
+        f"type: {page_type}\n"
+        f"tags: {_format_frontmatter_list(tags)}\n"
+        f"source: {json.dumps(source, ensure_ascii=False)}\n"
+        f"updated_at: {date.today().isoformat()}\n"
+        f"related_pages: {_format_frontmatter_list(related_pages)}\n"
+        f"{extra_lines}"
+        "---\n\n"
+        f"{clean_body}\n"
+    )
+
+
+def _ontology_label(term: str) -> str:
+    labels = {
+        "low_noise": "저소음",
+        "station_access": "역 접근성",
+        "sunlight": "채광",
+        "safety": "야간 안전",
+        "green_access": "녹지 접근성",
+        "river_access": "수변 접근성",
+        "school_district": "교육 인프라",
+        "office_access": "직주근접",
+        "low_rent": "비용 접근성",
+        "new_building": "신축/준신축",
+        "pet_friendly": "반려동물",
+        "parking": "주차",
+    }
+    return labels.get(term, term)
+
+
+def _ontology_path(province: str | None, terms: list[str], page: WikiPage) -> list[dict[str, str]]:
+    path: list[dict[str, str]] = []
+    if province:
+        path.append({"type": "province", "label": province})
+    district = page.metadata.get("district")
+    if district:
+        path.append({"type": "district", "label": str(district)})
+    for term in terms:
+        path.append({"type": "ontology", "label": _ontology_label(term), "term": term})
+    path.append({"type": "property", "label": page.title, "page_id": page.id})
+    return path
 
 
 def fetch_apt_trade(lawd_cd: str, deal_ymd: str) -> dict[str, Any]:

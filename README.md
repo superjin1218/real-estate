@@ -1,100 +1,79 @@
 # Real Estate Field Wiki
 
-부동산 임장 메모, 후보 매물, 체크리스트, 실거래 조회 결과를 Markdown Wiki로 정리하고, LLM Agent가 MCP Tool로 검색/조회/비교/그래프 탐색을 할 수 있게 만든 실행 가능한 Wiki 제품입니다.
+## Submission
 
-API Key 없이도 샘플 데이터로 바로 실행됩니다. 실제 공공데이터 조회가 필요하면 `.env`에 `DATA_GO_KR_SERVICE_KEY`만 추가하면 됩니다.
+| Field | Value |
+| --- | --- |
+| 이름 | 조진우 |
+| 학번 | 12234195 |
+| GitHub | https://github.com/superjin1218/real-estate |
+| 공개 여부 | Public |
+
+전국 부동산 임장 기록을 LLM Wiki로 관리하는 MCP 기반 Wiki Tool입니다. 첫 화면은 검색창 하나로 시작하고, 메뉴에서 지도 탐색, 아파트 찾기, 임장 등록하기, Wiki 문서, 후보 비교로 이동합니다.
+
+현재 `tools/generate_sample_wiki.py`는 전국 합성 Wiki Page 10,000개를 생성합니다. 지역 267개, 온톨로지 500개, 매물 6,000개, 임장 노트 3,000개, 체크리스트 200개, 실거래 샘플 33개로 구성되며 각 Page는 `related_pages`와 `ontology_terms`로 연결됩니다.
+
+## Core Experience
+
+- 첫 화면: ChatGPT처럼 중앙 검색창만 보이는 검색 중심 UI
+- 지도 탐색: 대한민국 SVG 지도에서 시도를 누르면 해당 지역 요약 그래프를 표시하고, node를 누르면 그 node 기준 1-hop 연결망으로 펼침
+- 아파트 찾기: “소음이 없는 서울에 있는 집 찾아줘” 같은 자연어를 `low_noise`, `서울특별시` 등 온톨로지 조건으로 정규화해 후보 매물 추천
+- 임장 등록하기: 새 글을 저장할 때 본문/태그 단어를 온톨로지화하고 관련 ontology Page와 자동 연결
+- 후보 비교: 첫 화면에서는 제거하고 메뉴 안에 숨김
 
 ## Repository Package
 
 | Path | Purpose |
 | --- | --- |
-| `RULES.md` | Agent 운영 지침과 금지 규칙 |
-| `skills/real-estate-wiki/SKILL.md` | Agent가 이 Wiki를 사용할 때 따르는 Skill |
-| `raw/` | 사용자가 넣는 원본 메모 |
-| `wiki/` | 화면과 MCP Tool이 읽는 Markdown Wiki Page |
-| `schema/page.schema.json` | Wiki Page metadata 구조 |
+| `wiki/` | Markdown Wiki Page store |
+| `tools/wiki_store.py` | Wiki 검색, 그래프, 온톨로지 추천, 저장 로직 |
 | `tools/mcp_server.py` | MCP Tool 서버 |
-| `tools/import_raw.py` | 원본 메모를 Wiki 초안으로 변환 |
-| `viewer/` | FastAPI Wiki Viewer와 지식그래프 시각화 |
-| `demo/mvp.png` | 실제 Wiki와 지식그래프 화면 캡처 증명 |
-| `docs/` | 도메인 정의, PRD, Agent SPEC 등 설계 문서 |
+| `tools/generate_sample_wiki.py` | 전국 10,000개 합성 Wiki Page 생성기 |
+| `viewer/` | FastAPI Viewer와 검색/지도/그래프 UI |
+| `schema/page.schema.json` | Wiki Page metadata schema |
+| `docs/` | 과제 제출용 DOMAIN/PRD/README/AGENT_SPEC |
+| `demo/mvp.png` | MVP 화면 캡처 |
 
-특별 기능: Wiki Page의 `related_pages` metadata를 이용해 문서 간 연결망을 지식그래프로 렌더링합니다. 같은 그래프 데이터는 `/api/graph`와 MCP Tool `get_knowledge_graph`로도 접근할 수 있습니다.
-
-## 1. Install
-
-Python 3.10 이상을 사용합니다.
+## Install
 
 ```bash
-git clone https://github.com/superjin1218/real-estate.git
 cd real-estate
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Ubuntu 계열에서 `ensurepip is not available` 오류가 나면 먼저 venv 패키지를 설치합니다.
+## Generate National Wiki
 
 ```bash
-sudo apt install python3-venv
-# 또는 Python 버전에 맞게: sudo apt install python3.12-venv
+python tools/generate_sample_wiki.py
 ```
 
-선택 사항:
-
-```bash
-cp .env.example .env
-# .env 파일에 DATA_GO_KR_SERVICE_KEY 값을 넣으면 공공데이터 API를 호출합니다.
-```
-
-API Key를 넣지 않아도 `fetch_apt_trade`, `fetch_apt_rent`는 샘플 데이터를 반환하므로 화면과 Agent 검증이 가능합니다.
-
-## 2. Run Viewer
-
-```bash
-uvicorn viewer.app:app --reload
-```
-
-브라우저에서 엽니다.
+기대 결과:
 
 ```text
-http://127.0.0.1:8000
+generated_pages: 10000
+regions: 267
+ontology: 500
+properties: 6000
+notes: 3000
+checklists: 200
+trade_summaries: 33
 ```
 
-화면에서 확인할 수 있는 항목:
-
-- 상단: 검색창, 최근 호출된 Tool 이름
-- 상단 그래프: Wiki Page 관계, 문서 타입 범례, 선택 문서의 연결 문서 강조
-- 좌측: Wiki Page 목록
-- 중앙: 선택한 Page 본문
-- 우측: 관련 Page와 전월세 실거래 샘플
-- 하단: 후보 매물 비교표
-
-## 3. Add One Personal Note
-
-처음 사용하는 사람은 `raw/my-first-note.md` 같은 파일을 하나 만듭니다.
-
-```md
-역에서 걸어서 10분 정도 걸렸다.
-창은 동향이고 아침에는 밝았다.
-큰길과 가까워 밤 소음은 다시 확인해야 한다.
-관리비는 11만원이라고 들었지만 포함 항목은 확인하지 못했다.
-```
-
-원본 메모를 Wiki Page 초안으로 변환합니다.
+## Run Viewer
 
 ```bash
-python tools/import_raw.py raw/my-first-note.md \
-  --visited-at 2026-06-16 \
-  --region "잠실동" \
-  --property "내 후보 매물 1"
+python3 -m uvicorn viewer.app:app --host 127.0.0.1 --port 8012
 ```
 
-생성된 파일은 `wiki/notes/` 아래에 저장됩니다. Viewer를 새로고침하면 좌측 Wiki 목록에서 확인할 수 있습니다.
+브라우저:
 
-## 4. MCP Tools
+```text
+http://127.0.0.1:8012/
+```
 
-MCP 서버 실행:
+## MCP Server
 
 ```bash
 python tools/mcp_server.py
@@ -114,60 +93,54 @@ Agent 설정 예시:
 }
 ```
 
-Tool 목록:
+## MCP Tools
 
-| Tool | Input | Behavior |
-| --- | --- | --- |
-| `list_pages` | `type?`, `tag?` | Wiki Page metadata 목록 조회 |
-| `get_page` | `page_id` | 특정 Page 본문과 metadata 조회 |
-| `search_pages` | `query`, `type?`, `tags?` | 제목, 태그, 본문 검색 |
-| `get_related_pages` | `page_id` | 연결된 Page 목록 조회 |
-| `get_knowledge_graph` | 없음 | Wiki Page node와 related edge 전체 조회 |
-| `create_field_note` | `raw_note`, `visited_at`, `region?`, `property?` | 임장 메모를 Wiki 초안으로 변환 |
-| `compare_properties` | `property_page_ids` | 후보 매물 비교표 생성 |
-| `fetch_apt_trade` | `lawd_cd`, `deal_ymd` | 아파트 매매 실거래 조회 또는 샘플 반환 |
-| `fetch_apt_rent` | `lawd_cd`, `deal_ymd` | 아파트 전월세 실거래 조회 또는 샘플 반환 |
+| Tool | Purpose |
+| --- | --- |
+| `list_pages` | Wiki Page 목록 조회, `type`, `tag`, `province`, `district`, `limit` 지원 |
+| `get_page` | Page metadata와 Markdown 본문 조회 |
+| `search_pages` | 키워드/태그/지역 기반 검색 |
+| `get_related_pages` | 특정 Page의 연결 Page 조회 |
+| `get_knowledge_graph` | 전체 그래프 반환, 대량 응답 주의 |
+| `get_atlas` | 시도별 Page 수, 매물 수, 대표 온톨로지 반환 |
+| `get_scoped_graph` | 시도/시군구 단위 부분 그래프 반환 |
+| `extract_ontology_terms` | 자연어/본문에서 온톨로지 term 추출 |
+| `recommend_properties` | 자연어 조건을 온톨로지화해 후보 매물 추천 |
+| `create_field_note` | 비정형 임장 메모를 초안으로 변환 |
+| `create_page` | 승인 기반 새 Wiki Page 저장, ontology 자동 연결 |
+| `update_page` | 승인 기반 기존 Page 수정, ontology 자동 보강 |
+| `compare_properties` | 메뉴 안 후보 비교용 비교표 생성 |
+| `fetch_apt_trade` | 아파트 매매 실거래 조회 또는 샘플 반환 |
+| `fetch_apt_rent` | 아파트 전월세 실거래 조회 또는 샘플 반환 |
 
-## 5. Integration Request Pattern
-
-Agent에게는 다음처럼 요청합니다.
-
-```text
-raw/my-first-note.md를 읽고 Wiki Page 초안을 만든 뒤,
-기존 property/checklist Page와 연결할 수 있는 항목을 찾아줘.
-근거가 되는 Wiki Page와 지식그래프는 MCP Tool로 조회하고,
-계약 추천은 하지 말고 확인 필요 항목만 정리해줘.
-```
-
-Agent는 `RULES.md`와 `skills/real-estate-wiki/SKILL.md`에 따라 파일을 추측해서 읽지 않고 MCP Tool 결과를 근거로 답해야 합니다.
-
-## 6. Verify
-
-로컬 Tool 자체 검증:
+## HTTP API
 
 ```bash
+curl http://127.0.0.1:8012/api/atlas
+curl "http://127.0.0.1:8012/api/graph?province=서울특별시&limit=500"
+curl "http://127.0.0.1:8012/api/recommend?q=소음이%20없는%20서울에%20있는%20집%20찾아줘&limit=5"
+curl "http://127.0.0.1:8012/api/pages?province=서울특별시&type=property&limit=20"
+```
+
+추천 응답은 `normalized.ontology_terms`, `ontology_path`, 추천 매물, 근거 문장을 포함합니다.
+
+## Verify
+
+```bash
+python3 -m compileall tools viewer
 python tools/mcp_server.py --self-test
-```
-
-Viewer API 검증:
-
-```bash
-curl http://127.0.0.1:8000/api/pages
-curl http://127.0.0.1:8000/api/graph
-curl "http://127.0.0.1:8000/api/search?q=잠실%20소음"
-curl "http://127.0.0.1:8000/api/compare?ids=property-jamsil-a,property-jamsil-b"
+find wiki/generated -type f -name '*.md' | wc -l
 ```
 
 기대 결과:
 
-- `page_count`가 1 이상이다.
-- `/api/graph` 결과에 `nodes`와 `edges`가 나온다.
-- `search_pages` 결과에 잠실 관련 Page가 나온다.
-- `compare_properties` 결과에 가격/비용, 교통, 소음/채광, 리스크 행이 나온다.
-- API Key가 없으면 `source`가 `sample_data`로 표시된다.
+- generated Page 수가 `10000`
+- self-test의 `recommend_sample`이 `서울특별시`, `low_noise`, 추천 매물을 반환
+- `/api/atlas`가 17개 시도 요약 반환
+- `/api/graph?province=서울특별시`가 서울 부분 그래프 반환
 
 ## Safety
 
-- API Key는 `.env`에만 둡니다.
-- 부동산 계약, 투자, 법률, 세금 판단은 제공하지 않습니다.
-- Wiki Page 또는 Tool 결과에 없는 정보는 사실처럼 쓰지 않습니다.
+- 생성 샘플은 실제 매물 데이터가 아니라 MVP 검증용 합성 데이터입니다.
+- Agent는 투자, 계약, 법률, 세금 판단을 하지 않습니다.
+- 새 Page 쓰기는 승인 기반이며 삭제 Tool은 제공하지 않습니다.
